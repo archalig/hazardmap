@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Seismic Hazard Map</title>
+
+<link rel="stylesheet"
+href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+html, body { margin: 0; height: 100%; }
+#map { width: 100%; height: 100%; }
+</style>
+</head>
+
+<body>
+<div id="map"></div>
+
+<script>
+const map = L.map('map').setView([12.8, 121.7], 6);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// ---------------------------------
+// Risk classification
+// ---------------------------------
+function riskLevel(v) {
+  if (v === null) return "No data";
+  if (v >= 0.8) return "Very High";
+  if (v >= 0.6) return "High";
+  if (v >= 0.4) return "Moderate";
+  if (v >= 0.2) return "Low";
+  return "Very Low";
+}
+
+function getColor(v) {
+  if (v === null) return "#cccccc";   // no data
+  return v >= 0.8 ? '#800026' :
+         v >= 0.6 ? '#E31A1C' :
+         v >= 0.4 ? '#FD8D3C' :
+         v >= 0.2 ? '#FED976' :
+                    '#FFFFCC';
+}
+
+// ---------------------------------
+// Load GeoJSON
+// ---------------------------------
+fetch('municipal_hazard.geojson')
+  .then(response => {
+    if (!response.ok) {
+      throw new Error("Could not load municipal_hazard.geojson");
+    }
+    return response.json();
+  })
+  .then(data => {
+
+    L.geoJSON(data, {
+      style: feature => ({
+        fillColor: getColor(feature.properties.hazard),
+        weight: 0.4,
+        color: '#444',
+        fillOpacity: 0.8
+      }),
+
+      onEachFeature: (feature, layer) => {
+        const h = feature.properties.hazard;
+
+        layer.bindTooltip(
+          `<strong>${feature.properties.NAME_2}</strong><br/>
+           Risk level: <b>${riskLevel(h)}</b><br/>
+           Hazard score: ${h === null ? "N/A" : h.toFixed(3)}`,
+          {
+            sticky: true,
+            direction: 'auto'
+          }
+        );
+      }
+
+    }).addTo(map);
+
+  })
+  .catch(err => console.error(err));
+</script>
+
+</body>
+</html>
